@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: is the user authenticated?
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: is the user accessing their own data?
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ─── Users Collection ──────────────────────────────────────────
+    // users/{userId}
+    match /users/{userId} {
+      // User can read and write only their own profile
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+
+      // ─── User Records Subcollection ──────────────────────────────
+      // users/{userId}/records/{recordId}
+      match /records/{recordId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0;
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      // ─── User Custom Categories Subcollection ────────────────────
+      // users/{userId}/categories/{categoryId}
+      match /categories/{categoryId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ─── OTP Requests Collection ───────────────────────────────────
+    // Handled exclusively by trusted Firebase Cloud Functions / Admin SDK
+    // Client SDK has NO direct read or write access
+    match /otp_requests/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
