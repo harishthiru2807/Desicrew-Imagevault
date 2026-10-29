@@ -1,66 +1,43 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search, Plus, Filter, SortAsc, SortDesc, X, Image,
+  Plus, Search, Image,
   LayoutGrid, List, BarChart2, Folder, Clock,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx';
 import { useToast } from '../components/Toast.jsx';
 import RecordCard from '../components/RecordCard.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import { debounce, timeAgo } from '../utils/utils.js';
-
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest First', icon: SortDesc },
-  { value: 'oldest', label: 'Oldest First', icon: SortAsc },
-  { value: 'alpha', label: 'A → Z', icon: SortAsc },
-  { value: 'alpha-desc', label: 'Z → A', icon: SortDesc },
-];
+import SearchFilters from '../components/SearchFilters.jsx';
+import useRecordSearch from '../hooks/useRecordSearch.js';
+import { timeAgo } from '../utils/utils.js';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { records, categories, removeRecord, loading } = useApp();
   const addToast = useToast();
 
-  const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [sort, setSort] = useState('newest');
   const [viewMode, setViewMode] = useState('grid');
   const [deleteId, setDeleteId] = useState(null);
-  const [showSortMenu, setShowSortMenu] = useState(false);
 
-  // Debounced search handler
-  const handleSearchChange = useCallback(
-    debounce((val) => setSearch(val), 200),
-    [],
-  );
-
-  // Filtered + sorted records
-  const filteredRecords = useMemo(() => {
-    let result = [...records];
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(r =>
-        r.title.toLowerCase().includes(q) ||
-        r.description?.toLowerCase().includes(q) ||
-        r.tags?.some(t => t.toLowerCase().includes(q)),
-      );
-    }
-
-    if (activeCategory !== 'all') {
-      result = result.filter(r => r.category === activeCategory);
-    }
-
-    switch (sort) {
-      case 'newest': result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); break;
-      case 'oldest': result.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); break;
-      case 'alpha': result.sort((a, b) => a.title.localeCompare(b.title)); break;
-      case 'alpha-desc': result.sort((a, b) => b.title.localeCompare(a.title)); break;
-    }
-
-    return result;
-  }, [records, search, activeCategory, sort]);
+  const {
+    filtered: filteredRecords,
+    searchQuery,
+    setSearchQuery,
+    activeCategory,
+    setActiveCategory,
+    activeTags,
+    setActiveTags,
+    dateRange,
+    setDateRange,
+    descriptionQuery,
+    setDescriptionQuery,
+    sort,
+    setSort,
+    activeFilterCount,
+    resetFilters,
+    allTags,
+  } = useRecordSearch({ records, categories });
 
   const handleDelete = useCallback(async () => {
     if (!deleteId) return;
@@ -79,7 +56,7 @@ export default function Dashboard() {
     [records],
   );
 
-  const hasFilters = search || activeCategory !== 'all' || sort !== 'newest';
+  const hasFilters = searchQuery || activeFilterCount > 0;
 
   if (loading && records.length === 0 && categories.length === 0) {
     return (
@@ -88,6 +65,32 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  // View mode toggle rendered as rightContent for the SearchFilters toolbar
+  const viewModeToggle = (
+    <div style={{ display: 'flex', gap: 2, background: 'var(--bg-surface-2)', borderRadius: 'var(--radius)', padding: 2 }}>
+      <button
+        className="btn-icon"
+        style={{ color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-muted)', background: viewMode === 'grid' ? 'var(--bg-surface)' : 'transparent', borderRadius: 'var(--radius-sm)', padding: 6 }}
+        onClick={() => setViewMode('grid')}
+        title="Grid view"
+        id="view-grid-btn"
+        type="button"
+      >
+        <LayoutGrid size={16} />
+      </button>
+      <button
+        className="btn-icon"
+        style={{ color: viewMode === 'list' ? 'var(--accent)' : 'var(--text-muted)', background: viewMode === 'list' ? 'var(--bg-surface)' : 'transparent', borderRadius: 'var(--radius-sm)', padding: 6 }}
+        onClick={() => setViewMode('list')}
+        title="List view"
+        id="view-list-btn"
+        type="button"
+      >
+        <List size={16} />
+      </button>
+    </div>
+  );
 
   return (
     <div className="page-content fade-in">
@@ -163,144 +166,41 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Search ── */}
-      <div className="search-bar" style={{ marginBottom: 12 }}>
-        <Search size={18} className="search-icon" />
-        <input
-          type="search"
-          className="form-control"
-          placeholder="Search by title, description, tags…"
-          defaultValue={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          id="dashboard-search"
-          aria-label="Search records"
-        />
-        {search && (
-          <button className="search-clear" onClick={() => { setSearch(''); document.getElementById('dashboard-search').value = ''; }} aria-label="Clear search">
-            <X size={16} />
-          </button>
-        )}
-      </div>
-
-      {/* ── Filters ── */}
-      <div className="filter-bar">
-        <button
-          className={`filter-chip${activeCategory === 'all' ? ' active' : ''}`}
-          onClick={() => setActiveCategory('all')}
-          id="filter-all"
-        >
-          All ({records.length})
-        </button>
-        {categories.map(cat => {
-          const count = records.filter(r => r.category === cat.id).length;
-          return (
-            <button
-              key={cat.id}
-              className={`filter-chip${activeCategory === cat.id ? ' active' : ''}`}
-              onClick={() => setActiveCategory(activeCategory === cat.id ? 'all' : cat.id)}
-              style={activeCategory === cat.id ? {} : { borderColor: cat.color + '66' }}
-              id={`filter-${cat.id}`}
-            >
-              {cat.name} ({count})
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Toolbar ── */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-          {filteredRecords.length} record{filteredRecords.length !== 1 ? 's' : ''}
-          {hasFilters && <span style={{ color: 'var(--accent)', marginLeft: 6 }}>filtered</span>}
-        </div>
-
-        {hasFilters && (
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => { setSearch(''); setActiveCategory('all'); setSort('newest'); document.getElementById('dashboard-search').value = ''; }}
-            id="clear-filters-btn"
-          >
-            <X size={14} />
-            Clear
-          </button>
-        )}
-
-        {/* Sort */}
-        <div style={{ position: 'relative' }}>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => setShowSortMenu(v => !v)}
-            id="sort-btn"
-          >
-            <Filter size={14} />
-            {SORT_OPTIONS.find(o => o.value === sort)?.label}
-          </button>
-          {showSortMenu && (
-            <>
-              <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setShowSortMenu(false)} />
-              <div style={{
-                position: 'absolute', right: 0, top: '100%', marginTop: 6,
-                background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)',
-                zIndex: 20, minWidth: 160, overflow: 'hidden',
-              }}>
-                {SORT_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      width: '100%', padding: '10px 14px',
-                      fontSize: '0.875rem', fontWeight: sort === opt.value ? 600 : 400,
-                      color: sort === opt.value ? 'var(--accent)' : 'var(--text-primary)',
-                      background: sort === opt.value ? 'var(--accent-light)' : 'transparent',
-                      transition: 'all var(--transition)',
-                    }}
-                    onClick={() => { setSort(opt.value); setShowSortMenu(false); }}
-                    id={`sort-${opt.value}`}
-                  >
-                    <opt.icon size={14} />
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* View mode toggle */}
-        <div style={{ display: 'flex', gap: 2, background: 'var(--bg-surface-2)', borderRadius: 'var(--radius)', padding: 2 }}>
-          <button
-            className={`btn-icon${viewMode === 'grid' ? '' : ''}`}
-            style={{ color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-muted)', background: viewMode === 'grid' ? 'var(--bg-surface)' : 'transparent', borderRadius: 'var(--radius-sm)', padding: 6 }}
-            onClick={() => setViewMode('grid')}
-            title="Grid view"
-            id="view-grid-btn"
-          >
-            <LayoutGrid size={16} />
-          </button>
-          <button
-            className="btn-icon"
-            style={{ color: viewMode === 'list' ? 'var(--accent)' : 'var(--text-muted)', background: viewMode === 'list' ? 'var(--bg-surface)' : 'transparent', borderRadius: 'var(--radius-sm)', padding: 6 }}
-            onClick={() => setViewMode('list')}
-            title="List view"
-            id="view-list-btn"
-          >
-            <List size={16} />
-          </button>
-        </div>
-      </div>
+      {/* ── Search + Filters (with view mode toggle as rightContent) ── */}
+      <SearchFilters
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        activeCategory={activeCategory}
+        onCategoryChange={setActiveCategory}
+        categories={categories}
+        activeTags={activeTags}
+        onTagsChange={setActiveTags}
+        allTags={allTags}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        descriptionQuery={descriptionQuery}
+        onDescriptionChange={setDescriptionQuery}
+        sort={sort}
+        onSortChange={setSort}
+        filtered={filteredRecords.length}
+        total={records.length}
+        activeFilterCount={activeFilterCount}
+        onReset={resetFilters}
+        searchInputId="dashboard-search"
+        rightContent={viewModeToggle}
+      />
 
       {/* ── Records Grid / List ── */}
       {filteredRecords.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">
-            {search || activeCategory !== 'all' ? <Search size={32} /> : <Image size={32} />}
+            {hasFilters ? <Search size={32} /> : <Image size={32} />}
           </div>
-          {search || activeCategory !== 'all' ? (
+          {hasFilters ? (
             <>
-              <h3>No records found</h3>
-              <p>Try different search terms or clear filters</p>
-              <button className="btn btn-secondary" onClick={() => { setSearch(''); setActiveCategory('all'); document.getElementById('dashboard-search').value = ''; }}>
+              <h3>No images found</h3>
+              <p>No images found. Try another keyword or adjust your filters.</p>
+              <button className="btn btn-secondary" onClick={() => { resetFilters(); setSearchQuery(''); }}>
                 Clear Filters
               </button>
             </>
