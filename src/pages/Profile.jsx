@@ -14,6 +14,10 @@ import {
   AlertTriangle,
   RefreshCw,
   Key,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
@@ -22,7 +26,7 @@ import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import { formatDate, formatDateTime } from '../utils/utils.js';
 
 export default function Profile() {
-  const { currentUser, userProfile, updateProfile, updateAvatar, logout } = useAuth();
+  const { currentUser, userProfile, updateProfile, updateAvatar, logout, changePassword } = useAuth();
   const { hasLocalData, migrateLocalToCloud } = useApp();
   const toast = useToast();
   const navigate = useNavigate();
@@ -36,7 +40,22 @@ export default function Profile() {
   const [migrationStatus, setMigrationStatus] = useState(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
+  // Change Password state
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmNewPw, setConfirmNewPw] = useState('');
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmNewPw, setShowConfirmNewPw] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
+  const [pwError, setPwError] = useState(null);
+
   const fileInputRef = useRef(null);
+
+  // Check if user has email+password provider
+  const hasPasswordProvider = currentUser?.providerData?.some(
+    (p) => p.providerId === 'password'
+  );
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -97,6 +116,35 @@ export default function Profile() {
       navigate('/login', { replace: true });
     } catch (err) {
       toast.show('Failed to sign out: ' + err.message, 'error');
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPwError(null);
+
+    if (!currentPw) { setPwError('Please enter your current password.'); return; }
+    if (newPw.length < 8) { setPwError('New password must be at least 8 characters.'); return; }
+    if (newPw !== confirmNewPw) { setPwError('New passwords do not match.'); return; }
+
+    setChangingPw(true);
+    try {
+      await changePassword(currentPw, newPw);
+      toast.show('Password updated successfully!', 'success');
+      setCurrentPw('');
+      setNewPw('');
+      setConfirmNewPw('');
+    } catch (err) {
+      const code = err?.code || '';
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        setPwError('Current password is incorrect.');
+      } else if (code === 'auth/requires-recent-login') {
+        setPwError('Please sign out and sign in again before changing your password.');
+      } else {
+        setPwError(err.message || 'Failed to update password.');
+      }
+    } finally {
+      setChangingPw(false);
     }
   };
 
@@ -277,6 +325,114 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Change Password Card — only for email+password accounts */}
+      {hasPasswordProvider && (
+        <div className="card profile-details-card" style={{ marginTop: 24 }}>
+          <h3 className="section-title">
+            <KeyRound size={18} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
+            Change Password
+          </h3>
+
+          {pwError && (
+            <div className="alert-banner error" style={{ marginBottom: 16 }}>
+              <AlertTriangle size={18} className="alert-icon" />
+              <div>{pwError}</div>
+            </div>
+          )}
+
+          <form onSubmit={handleChangePassword} className="profile-form">
+            <div className="form-group">
+              <label htmlFor="current-pw" className="form-label">Current Password</label>
+              <div className="input-with-icon password-input-wrapper">
+                <Lock size={18} className="input-icon" />
+                <input
+                  id="current-pw"
+                  type={showCurrentPw ? 'text' : 'password'}
+                  className="form-input"
+                  placeholder="Enter current password"
+                  value={currentPw}
+                  onChange={(e) => { setCurrentPw(e.target.value); setPwError(null); }}
+                  disabled={changingPw}
+                  style={{ paddingRight: 44 }}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowCurrentPw((v) => !v)}
+                  tabIndex={-1}
+                >
+                  {showCurrentPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="new-pw" className="form-label">New Password</label>
+              <div className="input-with-icon password-input-wrapper">
+                <Lock size={18} className="input-icon" />
+                <input
+                  id="new-pw"
+                  type={showNewPw ? 'text' : 'password'}
+                  className="form-input"
+                  placeholder="New password (min 8 characters)"
+                  value={newPw}
+                  onChange={(e) => { setNewPw(e.target.value); setPwError(null); }}
+                  disabled={changingPw}
+                  style={{ paddingRight: 44 }}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowNewPw((v) => !v)}
+                  tabIndex={-1}
+                >
+                  {showNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="confirm-new-pw" className="form-label">Confirm New Password</label>
+              <div className="input-with-icon password-input-wrapper">
+                <Lock size={18} className="input-icon" />
+                <input
+                  id="confirm-new-pw"
+                  type={showConfirmNewPw ? 'text' : 'password'}
+                  className="form-input"
+                  placeholder="Repeat new password"
+                  value={confirmNewPw}
+                  onChange={(e) => { setConfirmNewPw(e.target.value); setPwError(null); }}
+                  disabled={changingPw}
+                  style={{ paddingRight: 44 }}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowConfirmNewPw((v) => !v)}
+                  tabIndex={-1}
+                >
+                  {showConfirmNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" className="btn btn-primary" disabled={changingPw}>
+              {changingPw ? (
+                <>
+                  <RefreshCw size={16} className="spinner" />
+                  Updating Password...
+                </>
+              ) : (
+                <>
+                  <Key size={16} />
+                  Update Password
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={showLogoutDialog}

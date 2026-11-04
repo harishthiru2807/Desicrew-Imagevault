@@ -1228,3 +1228,196 @@ textarea.form-control { resize: vertical; min-height: 100px; }
     flex-wrap: wrap;
   }
 }
+
+
+/* ─── Auth Tabs ────────────────────────────────────────────────────────────── */
+.auth-tabs {
+  display: flex;
+  border-bottom: 1.5px solid var(--border);
+  margin-bottom: 24px;
+  gap: 0;
+}
+.auth-tab {
+  flex: 1;
+  padding: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1.5px;
+  transition: all var(--transition);
+  text-align: center;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  cursor: pointer;
+}
+.auth-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.auth-tab:hover:not(.active) {
+  color: var(--text-secondary);
+}
+
+/* ─── Password Strength ────────────────────────────────────────────────────── */
+.password-strength-bar {
+  height: 4px;
+  border-radius: var(--radius-full);
+  margin-top: 6px;
+  transition: all 0.3s;
+}
+.password-strength-bar.weak { background: var(--danger); width: 33%; }
+.password-strength-bar.medium { background: var(--warning); width: 66%; }
+.password-strength-bar.strong { background: var(--success); width: 100%; }
+.password-strength-label {
+  font-size: 0.75rem;
+  margin-top: 3px;
+  display: block;
+}
+.password-strength-label.weak { color: var(--danger); }
+.password-strength-label.medium { color: var(--warning); }
+.password-strength-label.strong { color: var(--success); }
+
+/* ─── Password Input Toggle ────────────────────────────────────────────────── */
+.password-input-wrapper {
+  position: relative;
+}
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition);
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.password-toggle-btn:hover { color: var(--text-primary); }
+
+/* ─── Alert Banner ─────────────────────────────────────────────────────────── */
+.alert-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.alert-banner.error {
+  background: var(--danger-light);
+  color: var(--danger);
+  border: 1px solid rgba(239,68,68,0.3);
+}
+.alert-banner.warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+.alert-banner.info {
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  border: 1px solid rgba(14,165,233,0.3);
+}
+.alert-banner.success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid rgba(16,185,129,0.3);
+}
+.alert-icon { flex-shrink: 0; margin-top: 1px; }
+
+/* ─── Remember Me / Checkbox Row ───────────────────────────────────────────── */
+.remember-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.875rem;
+}
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.forgot-link {
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: opacity var(--transition);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.forgot-link:hover { opacity: 0.8; text-decoration: underline; }
+
+/* ─── form-input (alias for form-control in auth pages) ────────────────────── */
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  outline: none;
+  font-family: var(--font);
+}
+.form-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
+}
+.form-input::placeholder { color: var(--text-muted); }
+.form-input.error { border-color: var(--danger); }
+.form-input.has-icon { padding-left: 42px; }
+
+/* btn-block */
+.btn-block { width: 100%; }
+
+/* ─── Auth divider with text ───────────────────────────────────────────────── */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  margin: 4px 0;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ─── Auth redirect link at bottom ────────────────────────────────────────── */
+.auth-redirect {
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 16px;
+}
+.auth-redirect a, .auth-redirect button {
+  color: var(--accent);
+  font-weight: 600;
+  margin-left: 4px;
+}
+.auth-redirect button { background: none; padding: 0; border: none; cursor: pointer; }
+.auth-redirect button:hover, .auth-redirect a:hover { text-decoration: underline; }

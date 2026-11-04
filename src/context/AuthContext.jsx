@@ -6,9 +6,21 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   auth,
+  db,
   onAuthStateChanged,
   signInWithCustomToken,
   signOut,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  firebaseUpdateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
   isFirebaseConfigured,
 } from '../services/firebase.js';
 import {
@@ -178,6 +190,70 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const signUpWithEmail = useCallback(async (email, password, fullName) => {
+    setAuthError(null);
+    if (!auth) throw new Error('Firebase Auth is not initialized');
+
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    await firebaseUpdateProfile(user, { displayName: fullName });
+    await sendEmailVerification(user);
+
+    if (db) {
+      const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+      const userRef = doc(db, 'users', user.uid);
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: fullName,
+        photoURL: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
+      });
+    }
+
+    return user;
+  }, []);
+
+  const signInWithEmail = useCallback(async (email, password, rememberMe = true) => {
+    setAuthError(null);
+    if (!auth) throw new Error('Firebase Auth is not initialized');
+
+    const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+    await setPersistence(auth, persistence);
+
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+    if (db && userCredential.user) {
+      try {
+        const { doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
+        const userRef = doc(db, 'users', userCredential.user.uid);
+        await updateDoc(userRef, { lastLoginAt: serverTimestamp() }).catch(() => {});
+      } catch {}
+    }
+
+    return userCredential.user;
+  }, []);
+
+  const sendPasswordReset = useCallback(async (email) => {
+    if (!auth) throw new Error('Firebase Auth is not initialized');
+    await sendPasswordResetEmail(auth, email);
+  }, []);
+
+  const resendVerificationEmail = useCallback(async () => {
+    if (!auth?.currentUser) throw new Error('No user signed in');
+    await sendEmailVerification(auth.currentUser);
+  }, []);
+
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    if (!auth?.currentUser) throw new Error('No user signed in');
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
+    await reauthenticateWithCredential(auth.currentUser, credential);
+    await updatePassword(auth.currentUser, newPassword);
+  }, []);
+
   const value = {
     currentUser,
     userProfile,
@@ -189,6 +265,11 @@ export function AuthProvider({ children }) {
     updateProfile,
     updateAvatar,
     logout,
+    signUpWithEmail,
+    signInWithEmail,
+    sendPasswordReset,
+    resendVerificationEmail,
+    changePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

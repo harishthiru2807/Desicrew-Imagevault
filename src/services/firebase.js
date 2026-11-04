@@ -7,9 +7,18 @@ import {
   getAuth,
   setPersistence,
   browserLocalPersistence,
+  browserSessionPersistence,
   onAuthStateChanged,
   signInWithCustomToken,
   signOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  updateProfile as firebaseUpdateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -67,4 +76,24 @@ if (isFirebaseConfigured()) {
   }
 }
 
-export { app, auth, db, storage, analytics, onAuthStateChanged, signInWithCustomToken, signOut };
+export {
+  app,
+  auth,
+  db,
+  storage,
+  analytics,
+  onAuthStateChanged,
+  signInWithCustomToken,
+  signOut,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  firebaseUpdateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+};

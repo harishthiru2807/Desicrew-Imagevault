@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { AppProvider } from './context/AppContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { BottomNav, Sidebar } from './components/Navigation.jsx';
-import { Lock } from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
 
 // Lazy-loaded pages
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
@@ -16,6 +16,7 @@ const Categories = lazy(() => import('./pages/Categories.jsx'));
 const Settings = lazy(() => import('./pages/Settings.jsx'));
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Login = lazy(() => import('./pages/Login.jsx'));
+const SignUp = lazy(() => import('./pages/SignUp.jsx'));
 
 function PageLoader() {
   return (
@@ -25,12 +26,43 @@ function PageLoader() {
   );
 }
 
+function AuthSplash() {
+  return (
+    <div className="auth-splash-screen">
+      <div className="auth-splash-content">
+        <div className="auth-splash-icon-box">
+          <LayoutGrid size={32} color="#fff" />
+          <div className="auth-splash-ring" />
+        </div>
+        <h2 className="auth-splash-title">ImageVault</h2>
+        <p className="auth-splash-status">Restoring your session…</p>
+        <div className="spinner" style={{ marginTop: 20 }} />
+      </div>
+    </div>
+  );
+}
+
+function RequireAuth({ children }) {
+  const { currentUser, authLoading } = useAuth();
+  const location = useLocation();
+
+  if (authLoading) {
+    return <AuthSplash />;
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
+
 function AppLayout({ children }) {
   const location = useLocation();
-  const isLoginPage = location.pathname === '/login';
+  const isPublicPage =
+    location.pathname === '/login' || location.pathname === '/signup';
 
-  // Only render public container on /login page
-  if (isLoginPage) {
+  if (isPublicPage) {
     return (
       <main className="app-main-public">
         <Suspense fallback={<PageLoader />}>{children}</Suspense>
@@ -57,18 +89,19 @@ export default function App() {
           <ToastProvider>
             <AppLayout>
               <Routes>
-                {/* Authentication Page */}
+                {/* Public routes */}
                 <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<SignUp />} />
 
-                {/* Core Application Pages - Always Accessible */}
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/records" element={<AllRecords />} />
-                <Route path="/add" element={<AddRecord />} />
-                <Route path="/edit/:id" element={<EditRecord />} />
-                <Route path="/record/:id" element={<RecordDetail />} />
-                <Route path="/categories" element={<Categories />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/profile" element={<Profile />} />
+                {/* Protected routes */}
+                <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
+                <Route path="/records" element={<RequireAuth><AllRecords /></RequireAuth>} />
+                <Route path="/add" element={<RequireAuth><AddRecord /></RequireAuth>} />
+                <Route path="/edit/:id" element={<RequireAuth><EditRecord /></RequireAuth>} />
+                <Route path="/record/:id" element={<RequireAuth><RecordDetail /></RequireAuth>} />
+                <Route path="/categories" element={<RequireAuth><Categories /></RequireAuth>} />
+                <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+                <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
 
                 {/* Catch-all redirect */}
                 <Route path="*" element={<Navigate to="/" replace />} />
