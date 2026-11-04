@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
@@ -22,7 +23,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     getStorageStats().then(setStats).catch(() => {});
-  }, [records.length]);
+  }, [records?.length]);
 
   const handleExport = async () => {
     try {
